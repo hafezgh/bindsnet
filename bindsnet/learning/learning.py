@@ -309,6 +309,7 @@ class PostPre(LearningRule):
         source_s = source_s.unfold(-3, kernel_width, stride[0]).unfold(-3, kernel_height, \
             stride[1]).unfold(-3, kernel_depth, stride[2]).reshape(batch_size, -1, in_channels*kernel_width*kernel_height*kernel_depth)
         target_s = self.target.s.view(batch_size, out_channels, -1).float()
+        print(target_x.shape, source_s.shape, self.connection.w.shape)
 
         # Pre-synaptic update.
         if self.nu[0]:

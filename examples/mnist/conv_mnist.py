@@ -160,6 +160,8 @@ weights1_im = None
 voltage_ims = None
 voltage_axes = None
 
+plot = False
+
 for epoch in range(n_epochs):
     if epoch % progress_interval == 0:
         print("Progress: %d / %d (%.4f seconds)" % (epoch, n_epochs, t() - start))
