@@ -17,7 +17,7 @@ from tqdm import tqdm
 #     plot_voltages,
 # )
 
-from temp import plot_locally_connected_feature_maps, LocalConnection2D
+from temp import plot_locally_connected_feature_maps
 
 from time import time as t
 from torchvision import transforms
@@ -26,7 +26,7 @@ from bindsnet.learning import PostPre
 from bindsnet.network.nodes import AdaptiveLIFNodes
 from bindsnet.network.nodes import Input
 from bindsnet.network.network import Network
-from bindsnet.network.topology import Connection
+from bindsnet.network.topology import Connection, LocalConnection2D
 from bindsnet.encoding import PoissonEncoder
 from bindsnet.datasets import MNIST
 
