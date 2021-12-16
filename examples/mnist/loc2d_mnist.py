@@ -96,7 +96,7 @@ input_output_conn = LocalConnection2D(
     norm=0.2*conv_size[0]*conv_size[1],
 )
 
-w_inh_LC = torch.zeros(in_channels, conv_size[0], conv_size[0], n_filters, conv_size[0], conv_size[0])
+w_inh_LC = torch.zeros(n_filters, conv_size[0], conv_size[0], n_filters, conv_size[0], conv_size[0])
 for c in range(n_filters):
     for w1 in range(conv_size[0]):
         for w2 in range(conv_size[0]):
