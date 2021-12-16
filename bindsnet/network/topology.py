@@ -1006,8 +1006,8 @@ class LocalConnection(AbstractConnection):
     ) -> None:
         # language=rst
         """
-        Instantiates a ``LocalConnection`` object. Source population should be
-        two-dimensional.
+        Instantiates a ``LocalConnection2D`` object. Source population should have 
+        square size
 
         Neurons in the post-synaptic population are ordered by receptive field; that is,
         if there are ``n_conv`` neurons in each post-synaptic patch, then the first
@@ -1038,6 +1038,7 @@ class LocalConnection(AbstractConnection):
         :param Tuple[int, int] input_shape: Shape of input population if it's not
             ``[sqrt, sqrt]``.
         """
+        
         super().__init__(source, target, nu, reduction, weight_decay, **kwargs)
 
         kernel_size = _pair(kernel_size)
