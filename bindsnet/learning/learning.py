@@ -16,9 +16,9 @@ from ..network.topology import (
     Conv2dConnection,
     Conv3dConnection,
     LocalConnection,
+    LocalConnection2D
 )
 
-from ...examples.mnist.temp import LocalConnection2D
 
 class LearningRule(ABC):
     # language=rst
