@@ -531,6 +531,7 @@ class LocalConnection2D(AbstractConnection):
             1,
         )
         print(self.s_unfold.shape)
+        print(self.w.shape)
         a_post = self.s_unfold.to(self.w.device) * self.w.unsqueeze(0)
         print(a_post.shape)
         print(a_post.sum(-1).sum(1).view(a_post.shape[0], self.out_channels, *self.conv_size,).shape)
