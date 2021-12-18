@@ -52,7 +52,7 @@ n_train = 500
 progress_interval = 10
 batch_size = 1
 
-plot = True
+plot = False
 slice_to_plot = 0
 
 

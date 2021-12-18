@@ -514,7 +514,7 @@ class LocalConnection2D(AbstractConnection):
         # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k ** 2
         # w: ch_in, ch_out * w_out * h_out, k ** 2
         # a_post: batch, ch_in, ch_out * w_out * h_out, k ** 2 => batch, ch_out * w_out * h_out (= target.n)
-        print(self.s_unfold.shape)
+        print(s.shape)
         self.s_unfold = s.unfold(
             -2,self.kernel_size[0],self.stride[0]
         ).unfold(
