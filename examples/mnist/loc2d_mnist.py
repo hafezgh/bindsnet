@@ -33,13 +33,13 @@ from bindsnet.datasets import MNIST
 
 # Hyperparameters
 in_channels = 1
-n_filters = 100
+n_filters = 50
 input_shape = [20, 20]
 kernel_size = _pair(12)
 stride = _pair(4)
 tc_theta_decay = 1e7
 theta_plus = 0.05
-norm = 0.2
+norm = 0.2*kernel_size[0]*kernel_size[1]
 wmin = 0.0
 wmax = 1.0
 nu = (1e-4, 1e-2)
@@ -93,7 +93,7 @@ input_output_conn = LocalConnection2D(
     update_rule=PostPre,
     wmin=wmin,
     wmax=wmax,
-    norm=0.2*conv_size[0]*conv_size[1],
+    norm=norm,
 )
 
 w_inh_LC = torch.zeros(n_filters, conv_size[0], conv_size[0], n_filters, conv_size[0], conv_size[0])
@@ -162,7 +162,6 @@ weights1_im = None
 voltage_ims = None
 voltage_axes = None
 
-plot = True
 
 
 for epoch in range(n_epochs):
@@ -203,7 +202,7 @@ for epoch in range(n_epochs):
             #     image, inpt, label=label, axes=inpt_axes, ims=inpt_ims
             # )
             # spike_ims, spike_axes = plot_spikes(_spikes, ims=spike_ims, axes=spike_axes)
-            weights1_im = plot_locally_connected_feature_maps(weights1, in_channels, slice_to_plot, input_shape[0], kernel_size, conv_size, im=weights1_im)
+            weights1_im = plot_locally_connected_feature_maps(weights1, n_filters, in_channels, slice_to_plot, input_shape[0], kernel_size[0], conv_size[0], im=weights1_im)
             # voltage_ims, voltage_axes = plot_voltages(
             #     _voltages, ims=voltage_ims, axes=voltage_axes
             # )
@@ -214,3 +213,8 @@ for epoch in range(n_epochs):
 
 print("Progress: %d / %d (%.4f seconds)\n" % (n_epochs, n_epochs, t() - start))
 print("Training complete.\n")
+
+weights1 = input_output_conn.w
+weights1_im = plot_locally_connected_feature_maps(weights1, n_filters, in_channels, slice_to_plot, input_shape[0], kernel_size[0], conv_size[0])
+plt.savefig('test.png')
+plt.pause(100)
