@@ -514,7 +514,7 @@ class LocalConnection2D(AbstractConnection):
         # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k ** 2
         # w: ch_in, ch_out * w_out * h_out, k ** 2
         # a_post: batch, ch_in, ch_out * w_out * h_out, k ** 2 => batch, ch_out * w_out * h_out (= target.n)
-        print(s.shape)
+        batch_size = self.s_unfold.shape[0]
         self.s_unfold = s.unfold(
             -2,self.kernel_size[0],self.stride[0]
         ).unfold(
@@ -532,11 +532,11 @@ class LocalConnection2D(AbstractConnection):
         )
         print(self.s_unfold.shape)
         print(self.w.shape)
-        a_post = torch.bmm(self.s_unfold.to(self.w.device), self.w)
+        a_post = self.s_unfold.to(self.w.device) * self.w
         print(a_post.shape)
         a_post = self.reduction(a_post.sum(-1), dim=0)
         print(a_post.shape)
-        return a_post.view(a_post.shape[1], self.out_channels, *self.conv_size)
+        return a_post
 
     def update(self, **kwargs) -> None:
         """
