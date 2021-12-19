@@ -88,7 +88,7 @@ input_output_conn = LocalConnection2D(
     stride=stride,
     in_channels=in_channels,
     out_channels=n_filters,
-    input_shape=input_shape,
+    input_shape=[20,20],
     nu=nu,
     update_rule=PostPre,
     wmin=wmin,
@@ -177,7 +177,7 @@ for epoch in range(n_epochs):
         # Get next input sample.
         if step > n_train:
             break
-        inputs = {"X": batch["encoded_image"].view(time, batch_size, input_shape[0], input_shape[1])}
+        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, input_shape[0], input_shape[1])}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
         label = batch["label"]
