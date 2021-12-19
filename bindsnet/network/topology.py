@@ -514,7 +514,7 @@ class LocalConnection2D(AbstractConnection):
         # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k ** 2
         # w: ch_in, ch_out * w_out * h_out, k ** 2
         # a_post: batch, ch_in, ch_out * w_out * h_out, k ** 2 => batch, ch_out * w_out * h_out (= target.n)
-
+        batch_size = s.shape[0]
         self.s_unfold = s.unfold(
             -2,self.kernel_size[0],self.stride[0]
         ).unfold(
@@ -532,9 +532,9 @@ class LocalConnection2D(AbstractConnection):
         )
         
         a_post = self.s_unfold.to(self.w.device) * self.w
-        print(a_post.sum(-1).shape)
-        print(a_post.sum(-1).sum(1).view(a_post.shape[0], self.in_channels, self.out_channels, *self.conv_size,).shape)
-        return a_post.sum(-1).sum(1).view(a_post.shape[0], self.in_channels, self.out_channels, *self.conv_size,)
+        # print(a_post.sum(-1).shape)
+        # print(a_post.sum(-1).sum(1).view(batch_size, self.out_channels, *self.conv_size).shape)
+        return a_post.sum(-1).sum(1).view(batch_size, self.out_channels, *self.conv_size)
 
     def update(self, **kwargs) -> None:
         """
