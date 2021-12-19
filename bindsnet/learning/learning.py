@@ -233,10 +233,10 @@ class PostPre(LearningRule):
             1,
         ).to(self.connection.w.device)
 
-        print(target_s.shape, source_x.shape)
-        print(self.connection.w.shape)
-        print(torch.bmm(target_x,source_s).shape)
-        print(self.reduction(torch.bmm(target_x,source_s), dim=0).shape)
+        # print(target_s.shape, source_x.shape)
+        # print(self.connection.w.shape)
+        # print(torch.bmm(target_x,source_s).shape)
+        # print(self.reduction(torch.bmm(target_x,source_s), dim=0).shape)
         # Pre-synaptic update.
         if self.nu[0]:
             pre = self.reduction(torch.bmm(target_x,source_s), dim=0)

@@ -32,7 +32,7 @@ from bindsnet.datasets import MNIST
 
 
 # Hyperparameters
-in_channels = 1
+in_channels = 2
 n_filters = 50
 input_shape = [20, 20]
 kernel_size = _pair(12)
@@ -177,7 +177,7 @@ for epoch in range(n_epochs):
         # Get next input sample.
         if step > n_train:
             break
-        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, input_shape[0], input_shape[1])}
+        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, input_shape[0], input_shape[1]).repeat(1,1,2,1,1)}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
         label = batch["label"]
