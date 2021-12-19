@@ -533,9 +533,7 @@ class LocalConnection2D(AbstractConnection):
         print(self.s_unfold.shape)
         print(self.w.shape)
         a_post = self.s_unfold.to(self.w.device) * self.w
-        print(a_post.shape)
-        a_post = self.reduction(a_post.sum(-1), dim=0)
-        print(a_post.shape)
+
         return a_post
 
     def update(self, **kwargs) -> None:
