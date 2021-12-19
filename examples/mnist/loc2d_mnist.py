@@ -50,7 +50,7 @@ intensity = 128
 n_epochs = 1
 n_train = 500
 progress_interval = 10
-batch_size = 10
+batch_size = 5
 
 plot = True
 slice_to_plot = 0
