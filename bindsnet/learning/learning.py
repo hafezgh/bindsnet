@@ -220,7 +220,7 @@ class PostPre(LearningRule):
             1,
         ).to(self.connection.w.device)
         
-        print(target_x.shape, source_s.shape)
+
         target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
         target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
         source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
@@ -232,11 +232,10 @@ class PostPre(LearningRule):
             out_channels,
             1,
         ).to(self.connection.w.device)
-
-        # print(target_s.shape, source_x.shape)
-        # print(self.connection.w.shape)
-        # print(torch.bmm(target_x,source_s).shape)
-        # print(self.reduction(torch.bmm(target_x,source_s), dim=0).shape)
+        print(target_x.shape, source_s.shape)
+        print(target_s.shape, source_x.shape)
+        print(torch.bmm(target_x,source_s).shape)
+        print(self.reduction(torch.bmm(target_x,source_s), dim=0).shape)
         # Pre-synaptic update.
         if self.nu[0]:
             pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
