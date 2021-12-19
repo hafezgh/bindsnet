@@ -532,14 +532,14 @@ class LocalConnection2D(AbstractConnection):
         )
         
         a_post = self.s_unfold.to(self.w.device) * self.w
-        print('w')
-        print(self.w.shape)
-        print('a post')
-        print(a_post.shape)
-        print('a post sum')
-        print(a_post.sum(-1).shape)
-        print('a post sum2')
-        print(a_post.sum(-1).sum(1).shape)
+        # print('w')
+        # print(self.w.shape)
+        # print('a post')
+        # print(a_post.shape)
+        # print('a post sum')
+        # print(a_post.sum(-1).shape)
+        # print('a post sum2')
+        # print(a_post.sum(-1).sum(1).shape)
         return a_post.sum(-1).sum(1).view(batch_size, self.out_channels, *self.conv_size)
 
     def update(self, **kwargs) -> None:
