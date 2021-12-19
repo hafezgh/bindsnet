@@ -530,8 +530,7 @@ class LocalConnection2D(AbstractConnection):
             self.out_channels,
             1,
         )
-        print(self.s_unfold.shape)
-        print(self.w.shape)
+
         a_post = self.s_unfold.to(self.w.device) * self.w
 
         return a_post
@@ -681,6 +680,14 @@ class Conv2dConnection(AbstractConnection):
         :return: Incoming spikes multiplied by synaptic weights (with or without
             decaying spike activation).
         """
+        print(self.w.shape, self.b.shape, s.shape)
+        print(F.conv2d(
+            s.float(),
+            self.w,
+            self.b,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,).shape)
         return F.conv2d(
             s.float(),
             self.w,
