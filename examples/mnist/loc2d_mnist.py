@@ -52,7 +52,7 @@ n_train = 500
 progress_interval = 10
 batch_size = 10
 
-plot = False
+plot = True
 slice_to_plot = 0
 
 
@@ -186,10 +186,10 @@ for epoch in range(n_epochs):
         network.run(inputs=inputs, time=time, input_time_dim=1)
 
         # Optionally plot various simulation information.
-        if plot and batch_size == 1:
-            image = batch["image"].view(input_shape[0], input_shape[1])
+        if plot:
+            # image = batch["image"].view(input_shape[0], input_shape[1])
 
-            inpt = inputs["X"].view(time, input_shape[0]*input_shape[1]).sum(0).view(input_shape[0], input_shape[1])
+            # inpt = inputs["X"].view(time, input_shape[0]*input_shape[1]).sum(0).view(input_shape[0], input_shape[1])
             weights1 = input_output_conn.w
             #print(weights1.shape)
             # _spikes = {
