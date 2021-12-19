@@ -242,7 +242,6 @@ class Network(torch.nn.Module):
                 if isinstance(target, CSRMNodes):
                     inputs[c[1]] += self.connections[c].compute_window(source.s)
                 else:
-                    print(inputs[c[1]].shape)
                     inputs[c[1]] += self.connections[c].compute(source.s)
 
         return inputs
