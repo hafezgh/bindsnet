@@ -13,6 +13,7 @@ from ..network.topology import (
     Connection,
     Conv2dConnection,
     LocalConnection,
+    LocalConnection2D,
     LocalConnectionOrig,
     MaxPool2dLocalConnection,
 )
@@ -672,6 +673,8 @@ class MSTDP(LearningRule):
             self.update = self._connection_update
         elif isinstance(connection, Conv2dConnection):
             self.update = self._conv2d_connection_update
+        elif isinstance(connection, LocalConnection):
+            self.update = self._local_connection_update
         else:
             raise NotImplementedError(
                 "This learning rule is not supported for this Connection type."
@@ -756,6 +759,7 @@ class MSTDP(LearningRule):
 
         super().update()
 
+
     def _conv2d_connection_update(self, **kwargs) -> None:
         # language=rst
         """
@@ -803,6 +807,7 @@ class MSTDP(LearningRule):
             self.p_plus = im2col_indices(
                 self.p_plus, kernel_height, kernel_width, padding=padding, stride=stride
             )
+
         if not hasattr(self, "p_minus"):
             self.p_minus = torch.zeros(
                 batch_size, *self.target.shape, device=self.connection.w.device
@@ -832,6 +837,119 @@ class MSTDP(LearningRule):
         self.eligibility = self.eligibility.view(self.connection.w.size())
         super().update()
 
+    def _local_connection_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        MSTDP learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+
+        padding, stride = self.connection.padding, self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.in_channels
+        out_channels = self.connection.out_channels
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        # Initialize eligibility.
+        if not hasattr(self, "eligibility"):
+            self.eligibility = torch.zeros(
+                batch_size, *self.connection.w.shape, device=self.connection.w.device
+            )
+
+        # Parse keyword arguments.
+        reward = kwargs["reward"]
+        a_plus = torch.tensor(
+            kwargs.get("a_plus", 1.0), device=self.connection.w.device
+        )
+        a_minus = torch.tensor(
+            kwargs.get("a_minus", -1.0), device=self.connection.w.device
+        )
+
+        # Compute weight update based on the eligibility value of the past timestep.
+        update = reward * self.eligibility
+        self.connection.w += self.nu[0] * torch.sum(update, dim=0)
+
+        # Initialize P^+ and P^-.
+        if not hasattr(self, "p_plus"):
+            self.p_plus = torch.zeros(
+                batch_size, *self.source.shape, device=self.connection.w.device
+            )
+            self.p_plus = self.p_plus.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+                batch_size, 
+                width_out * height_out,
+                in_channels *  kernel_width *  kernel_height,
+            ).repeat(
+                1,
+                out_channels,
+                1,
+            ).to(self.connection.w.device)
+            
+        if not hasattr(self, "p_minus"):
+            self.p_minus = torch.zeros(
+                batch_size, *self.target.shape, device=self.connection.w.device
+            )
+            self.p_minus = self.p_minus.reshape(batch_size,\
+                 out_channels * width_out * height_out, 1).float()
+
+        # Reshaping spike occurrences.
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+        # print(target_x.shape, source_s.shape)
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        
+        # Update P^+ and P^- values.
+        self.p_plus *= torch.exp(-self.connection.dt / self.tc_plus)
+        self.p_plus += a_plus * source_s
+        self.p_minus *= torch.exp(-self.connection.dt / self.tc_minus)
+        self.p_minus += a_minus * target_s
+
+        # Calculate point eligibility value.
+        self.eligibility = torch.bmm(
+            target_s, self.p_plus, dim=0
+        ) + torch.bmm(self.p_minus, source_s, dim=0)
+        self.eligibility = self.eligibility.view(self.connection.w.size())
+
+        super().update()
+        
+    # def _connection_update(self, **kwargs) -> None:
+    #     # language=rst
+    #     """
+    #     Post-pre learning rule for ``Connection`` subclass of ``AbstractConnection``
+    #     class.
+    #     """
+    #     batch_size = self.source.batch_size
+
+    #     # Pre-synaptic update.
+    #     if self.nu[0]:
+    #         source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
+    #         target_x = self.target.x.view(batch_size, -1).unsqueeze(1) * self.nu[0]
+    #         self.connection.w -= self.reduction(torch.bmm(source_s, target_x), dim=0)
+    #         del source_s, target_x
+
+    #     # Post-synaptic update.
+    #     if self.nu[1]:
+    #         target_s = (
+    #             self.target.s.view(batch_size, -1).unsqueeze(1).float() * self.nu[1]
+    #         )
+    #         source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
+    #         self.connection.w += self.reduction(torch.bmm(source_x, target_s), dim=0)
+    #         del source_x, target_s
+
+    #     super().update()
 
 class MSTDPET(LearningRule):
     # language=rst
