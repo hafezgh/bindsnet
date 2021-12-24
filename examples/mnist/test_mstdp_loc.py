@@ -33,7 +33,7 @@ from bindsnet.datasets import MNIST
 
 # Hyperparameters
 in_channels = 1
-n_filters = 50
+n_filters = 25
 input_shape = [20, 20]
 kernel_size = _pair(12)
 stride = _pair(4)
