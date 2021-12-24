@@ -1198,7 +1198,9 @@ class MSTDP(LearningRule):
                 batch_size, *self.target.shape, device=self.connection.w.device
             )
             self.p_minus = self.p_minus.reshape(batch_size,\
-                 out_channels * width_out * height_out, 1).float()
+                 out_channels * width_out * height_out, 1)
+            self.p_minus = self.p_minus *\
+                 torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
 
         # Reshaping spike occurrences.
         source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
