@@ -1225,8 +1225,8 @@ class MSTDP(LearningRule):
 
         # Calculate point eligibility value.
         self.eligibility = torch.bmm(
-            target_s, self.p_plus, dim=0
-        ) + torch.bmm(self.p_minus, source_s, dim=0)
+            target_s, self.p_plus
+        ) + torch.bmm(self.p_minus, source_s)
         self.eligibility = self.eligibility.view(self.connection.w.size())
 
         super().update()
