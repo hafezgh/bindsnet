@@ -560,7 +560,7 @@ class LocalConnection2D(AbstractConnection):
         # print(a_post.sum(-1).shape)
         # print('a post sum2')
         # print(a_post.sum(-1).sum(1).shape)
-        return a_post.sum(-1).sum(1).view(batch_size, self.n_filters, *self.conv_size)
+        return a_post.sum(-1).sum(1).view(batch_size, *self.target.shape)
 
     def update(self, **kwargs) -> None:
         """
