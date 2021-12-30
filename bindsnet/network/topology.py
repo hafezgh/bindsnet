@@ -475,10 +475,9 @@ class LocalConnection2D(AbstractConnection):
             input_width - self.kernel_size[1] + 2 * self.padding[1]
         ) / self.stride[1] + 1
 
-        conv_size = (height, width)
 
-        self.conv_size = conv_size
-        self.conv_prod = int(np.prod(conv_size))
+        self.conv_size = (height, width)
+        self.conv_prod = int(np.prod(self.conv_size))
         self.kernel_prod = int(np.prod(kernel_size))
 
         w = kwargs.get("w", None)
