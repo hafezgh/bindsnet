@@ -531,7 +531,7 @@ class LocalConnection2D(AbstractConnection):
         ).repeat(
             1,
             1,
-            self.out_channels,
+            self.n_filters,
             1,
         )
         
