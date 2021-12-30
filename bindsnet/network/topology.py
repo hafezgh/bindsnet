@@ -523,7 +523,7 @@ class LocalConnection2D(AbstractConnection):
 
         batch_size = s.shape[0]
 
-        self.s_unfold = im2col_indices(s, self.kernel_size[0], self.kernel_size[1], padding=self.padding, stride=self.stride)
+        self.s_unfold = im2col_indices(s.float(), self.kernel_size[0], self.kernel_size[1], padding=self.padding, stride=self.stride)
         self.s_unfold = self.reshape(
             s.shape[0], 
             self.in_channels,
