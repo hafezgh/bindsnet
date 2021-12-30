@@ -4,6 +4,7 @@ from typing import Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from bindsnet.utils import im2col_indices
 from torch.nn import Module, Parameter
 from torch.nn.modules.utils import _pair, _triple
 
@@ -408,8 +409,8 @@ class Conv1dConnection(AbstractConnection):
 
 class LocalConnection2D(AbstractConnection):
     """
-    2D Local connection between one or two population of neurons supporting multi-channel 3D inputs;
-    the logic is different from the BindsNet implementaion, but some lines are unchanged
+    Specifies a two-dimensional local connection between one or two population of neurons supporting multi-channel 3D inputs; 
+    The logic is different from the original LocalConnection implementation
     """
 
     def __init__(
@@ -418,17 +419,15 @@ class LocalConnection2D(AbstractConnection):
         target: Nodes,
         kernel_size: Union[int, Tuple[int, int]],
         stride: Union[int, Tuple[int, int]],
-        in_channels: int,
-        out_channels: int,
-        input_shape: Tuple,
+        n_filters: int,
         nu: Optional[Union[float, Sequence[float]]] = None,
         reduction: Optional[callable] = None,
         weight_decay: float = 0.0,
         **kwargs
     ) -> None:
         """
-        Instantiates a 'LocalConnection` object. Source population can be multi-channel
-        Neurons in the post-synaptic population are ordered by receptive field; that is,
+        Instantiates a 'LocalConnection` object. Source population can be multi-channel.
+        Neurons in the post-synaptic population are ordered by receptive field, i.e.,
         if there are `n_conv` neurons in each post-synaptic patch, then the first
         `n_conv` neurons in the post-synaptic population correspond to the first
         receptive field, the second ``n_conv`` to the second receptive field, and so on.
@@ -436,12 +435,10 @@ class LocalConnection2D(AbstractConnection):
         :param target: A layer of nodes to which the connection connects.
         :param kernel_size: Horizontal and vertical size of convolutional kernels.
         :param stride: Horizontal and vertical stride for convolution.
-        :param in_channels: The number of input channels
-        :param out_channels: The number of output channels
+        :param n_filters: Number of locally connected filters per pre-synaptic region.
         :param input_shape: The 2D shape of each input channel
         :param nu: Learning rate for both pre- and post-synaptic events.
-        :param reduction: Method for reducing parameter updates along the minibatch
-            dimension.
+        :param reduction: Method for reducing parameter updates along the minibatchdimension.
         :param weight_decay: Constant multiple to decay weights by on each iteration.
         Keyword arguments:
         :param LearningRule update_rule: Modifies connection parameters according to
@@ -455,39 +452,47 @@ class LocalConnection2D(AbstractConnection):
 
         super().__init__(source, target, nu, reduction, weight_decay, **kwargs)
 
+        padding = kwargs.get('padding', 0)
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
+        padding = _pair(padding)
 
         self.kernel_size = kernel_size
         self.stride = stride
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.padding = kwargs.get('padding', 0)
+        self.n_filters = n_filters
+        self.padding = padding
 
-        shape = input_shape
+        self.in_channels, input_height, input_width = (
+            source.shape[0],
+            source.shape[1],
+            source.shape[2],
+        )
 
-        if kernel_size == shape:
-            conv_size = [1, 1]
-        else:
-            conv_size = (
-                (shape[0] - kernel_size[0]) // stride[0] + 1,
-                (shape[1] - kernel_size[1]) // stride[1] + 1,
-            )
+        height = (
+            input_height - self.kernel_size[0] + 2 * self.padding[0]
+        ) / self.stride[0] + 1
+        width = (
+            input_width - self.kernel_size[1] + 2 * self.padding[1]
+        ) / self.stride[1] + 1
+
+        conv_size = (height, width)
 
         self.conv_size = conv_size
         self.conv_prod = int(np.prod(conv_size))
         self.kernel_prod = int(np.prod(kernel_size))
-         
-        assert (
-            target.n == out_channels * self.conv_prod
-        ), "Target layer size must be n_filters * (kernel_size ** 2)."
 
         w = kwargs.get("w", None)
+
+        error =  (
+            "Target dimensionality must be (in_channels,"
+            "n_filters*conv_prod,"
+            "kernel_prod)"
+        )
 
         if w is None:
             w = torch.rand(
                 self.in_channels, 
-                self.out_channels * self.conv_prod,
+                self.n_filters * self.conv_prod,
                 self.kernel_prod
             )
         else:
@@ -495,7 +500,8 @@ class LocalConnection2D(AbstractConnection):
                 self.in_channels, 
                 self.out_channels * self.conv_prod,
                 self.kernel_prod
-                )
+                ), error
+
         if self.wmin != -np.inf or self.wmax != np.inf:
             w = torch.clamp(w, self.wmin, self.wmax)
 
@@ -511,15 +517,14 @@ class LocalConnection2D(AbstractConnection):
             decaying spike activation).
         """
         # Compute multiplication of pre-activations by connection weights
-        # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k ** 2
-        # w: ch_in, ch_out * w_out * h_out, k ** 2
-        # a_post: batch, ch_in, ch_out * w_out * h_out, k ** 2 => batch, ch_out * w_out * h_out (= target.n)
+        # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k1*k2
+        # w: ch_in, ch_out * w_out * h_out, k1*k2
+        # a_post: batch, ch_in, ch_out * w_out * h_out, k1*k2 => batch, ch_out * w_out * h_out (= target.n)
+
         batch_size = s.shape[0]
-        self.s_unfold = s.unfold(
-            -2,self.kernel_size[0],self.stride[0]
-        ).unfold(
-            -2,self.kernel_size[1],self.stride[1]
-        ).reshape(
+
+        self.s_unfold = im2col_indices(s, self.kernel_size[0], self.kernel_size[1], padding=self.padding, stride=self.stride)
+        self.s_unfold = self.reshape(
             s.shape[0], 
             self.in_channels,
             self.conv_prod,
@@ -530,6 +535,22 @@ class LocalConnection2D(AbstractConnection):
             self.out_channels,
             1,
         )
+
+        # self.s_unfold = s.unfold(
+        #     -2,self.kernel_size[0],self.stride[0]
+        # ).unfold(
+        #     -2,self.kernel_size[1],self.stride[1]
+        # ).reshape(
+        #     s.shape[0], 
+        #     self.in_channels,
+        #     self.conv_prod,
+        #     self.kernel_prod,
+        # ).repeat(
+        #     1,
+        #     1,
+        #     self.out_channels,
+        #     1,
+        # )
         
         a_post = self.s_unfold.to(self.w.device) * self.w
         # print('w')

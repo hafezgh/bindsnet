@@ -21,7 +21,7 @@ from temp import plot_locally_connected_feature_maps
 
 from time import time as t
 from torchvision import transforms
-from bindsnet.learning import PostPre, MSTDP
+from bindsnet.learning import PostPre, MSTDP, MSTDPET
 
 from bindsnet.network.nodes import AdaptiveLIFNodes
 from bindsnet.network.nodes import Input
@@ -90,7 +90,7 @@ input_output_conn = LocalConnection2D(
     out_channels=n_filters,
     input_shape=[20,20],
     nu=nu,
-    update_rule=MSTDP,
+    update_rule=MSTDPET,
     wmin=wmin,
     wmax=wmax,
     norm=norm,
