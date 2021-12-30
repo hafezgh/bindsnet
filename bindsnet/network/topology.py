@@ -532,7 +532,7 @@ class LocalConnection2D(AbstractConnection):
         ).repeat(
             1,
             1,
-            self.out_channels,
+            self.n_filters,
             1,
         )
 
@@ -561,7 +561,7 @@ class LocalConnection2D(AbstractConnection):
         # print(a_post.sum(-1).shape)
         # print('a post sum2')
         # print(a_post.sum(-1).sum(1).shape)
-        return a_post.sum(-1).sum(1).view(batch_size, self.out_channels, *self.conv_size)
+        return a_post.sum(-1).sum(1).view(batch_size, self.n_filters, *self.conv_size)
 
     def update(self, **kwargs) -> None:
         """
