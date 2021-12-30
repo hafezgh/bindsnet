@@ -452,15 +452,12 @@ class LocalConnection2D(AbstractConnection):
 
         super().__init__(source, target, nu, reduction, weight_decay, **kwargs)
 
-        padding = kwargs.get('padding', 0)
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
-        padding = _pair(padding)
 
         self.kernel_size = kernel_size
         self.stride = stride
         self.n_filters = n_filters
-        self.padding = padding
 
         self.in_channels, input_height, input_width = (
             source.shape[0],
@@ -469,10 +466,10 @@ class LocalConnection2D(AbstractConnection):
         )
 
         height = int((
-            input_height - self.kernel_size[0] + 2 * self.padding[0]
+            input_height - self.kernel_size[0]
         ) / self.stride[0]) + 1
         width = int((
-            input_width - self.kernel_size[1] + 2 * self.padding[1]
+            input_width - self.kernel_size[1]
         ) / self.stride[1]) + 1
 
 
@@ -522,8 +519,11 @@ class LocalConnection2D(AbstractConnection):
 
         batch_size = s.shape[0]
 
-        self.s_unfold = im2col_indices(s.float(), self.kernel_size[0], self.kernel_size[1], padding=self.padding, stride=self.stride)
-        self.s_unfold = self.s_unfold.reshape(
+        self.s_unfold = s.unfold(
+            -2,self.kernel_size[0],self.stride[0]
+        ).unfold(
+            -2,self.kernel_size[1],self.stride[1]
+        ).reshape(
             s.shape[0], 
             self.in_channels,
             self.conv_prod,
@@ -531,35 +531,12 @@ class LocalConnection2D(AbstractConnection):
         ).repeat(
             1,
             1,
-            self.n_filters,
+            self.out_channels,
             1,
         )
-
-        # self.s_unfold = s.unfold(
-        #     -2,self.kernel_size[0],self.stride[0]
-        # ).unfold(
-        #     -2,self.kernel_size[1],self.stride[1]
-        # ).reshape(
-        #     s.shape[0], 
-        #     self.in_channels,
-        #     self.conv_prod,
-        #     self.kernel_prod,
-        # ).repeat(
-        #     1,
-        #     1,
-        #     self.out_channels,
-        #     1,
-        # )
         
         a_post = self.s_unfold.to(self.w.device) * self.w
-        # print('w')
-        # print(self.w.shape)
-        # print('a post')
-        # print(a_post.shape)
-        # print('a post sum')
-        # print(a_post.sum(-1).shape)
-        # print('a post sum2')
-        # print(a_post.sum(-1).sum(1).shape)
+
         return a_post.sum(-1).sum(1).view(batch_size, *self.target.shape)
 
     def update(self, **kwargs) -> None:

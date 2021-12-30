@@ -196,24 +196,20 @@ class PostPre(LearningRule):
         Post-pre learning rule for ``LocalConnection`` subclass of
         ``AbstractConnection`` class.
         """
-
         # Get LC layer parameters.
-        padding, stride = self.connection.padding, self.connection.stride
+        stride = self.connection.stride
         batch_size = self.source.batch_size
-        kernel_height = self.connection.kernel_size[0]
-        kernel_width = self.connection.kernel_size[1]
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
         in_channels = self.connection.source.shape[0]
         out_channels = self.connection.n_filters
         width_out = self.connection.conv_size[0]
         height_out = self.connection.conv_size[1]
 
 
-        ## target_x (s) ch_o, w_o, h_o  
         target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
         target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
-        source_s = im2col_indices(self.source.s.type(torch.float), kernel_height, kernel_width, padding, stride)
-        
-        source_s = source_s.reshape(
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
             batch_size, 
             width_out * height_out,
             in_channels *  kernel_width *  kernel_height,
@@ -226,9 +222,7 @@ class PostPre(LearningRule):
 
         target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
         target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
-        source_x = im2col_indices(self.source.x, kernel_height, kernel_width, padding, stride)
-        
-        source_x = source_x.reshape(
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
             batch_size, 
             width_out * height_out,
             in_channels *  kernel_width *  kernel_height,
@@ -237,11 +231,7 @@ class PostPre(LearningRule):
             out_channels,
             1,
         ).to(self.connection.w.device)
-        # print('')
-        # print(target_x.shape, source_s.shape)
-        # print(target_s.shape, source_x.shape)
-        # print(torch.bmm(target_x,source_s).shape)
-        # print(self.reduction(torch.bmm(target_x,source_s), dim=0).shape)
+
         # Pre-synaptic update.
         if self.nu[0]:
             pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
