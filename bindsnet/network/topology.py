@@ -468,12 +468,12 @@ class LocalConnection2D(AbstractConnection):
             source.shape[2],
         )
 
-        height = (
+        height = int((
             input_height - self.kernel_size[0] + 2 * self.padding[0]
-        ) / self.stride[0] + 1
-        width = (
+        ) / self.stride[0]) + 1
+        width = int((
             input_width - self.kernel_size[1] + 2 * self.padding[1]
-        ) / self.stride[1] + 1
+        ) / self.stride[1]) + 1
 
 
         self.conv_size = (height, width)
