@@ -406,8 +406,332 @@ class Conv1dConnection(AbstractConnection):
         super().reset_state_variables()
 
 
+class LocalConnection1D(AbstractConnection):
+    """
+    Specifies a two-dimensional local connection between one or two population of neurons supporting multi-channel 3D inputs; 
+    The logic is different from the original LocalConnection implementation
+    """
+
+    def __init__(
+        self,
+        source: Nodes,
+        target: Nodes,
+        kernel_size: Union[int, Tuple[int, int]],
+        stride: Union[int, Tuple[int, int]],
+        n_filters: int,
+        nu: Optional[Union[float, Sequence[float]]] = None,
+        reduction: Optional[callable] = None,
+        weight_decay: float = 0.0,
+        **kwargs
+    ) -> None:
+        """
+        Instantiates a 'LocalConnection` object. Source population can be multi-channel.
+        Neurons in the post-synaptic population are ordered by receptive field, i.e.,
+        if there are `n_conv` neurons in each post-synaptic patch, then the first
+        `n_conv` neurons in the post-synaptic population correspond to the first
+        receptive field, the second ``n_conv`` to the second receptive field, and so on.
+        :param source: A layer of nodes from which the connection originates.
+        :param target: A layer of nodes to which the connection connects.
+        :param kernel_size: Horizontal and vertical size of convolutional kernels.
+        :param stride: Horizontal and vertical stride for convolution.
+        :param n_filters: Number of locally connected filters per pre-synaptic region.
+        :param input_shape: The 2D shape of each input channel
+        :param nu: Learning rate for both pre- and post-synaptic events.
+        :param reduction: Method for reducing parameter updates along the minibatchdimension.
+        :param weight_decay: Constant multiple to decay weights by on each iteration.
+        Keyword arguments:
+        :param LearningRule update_rule: Modifies connection parameters according to
+            some rule. For now, only PostPre has been implemented for the multi-channel-input implementation
+        :param torch.Tensor w: Strengths of synapses.
+        :param torch.Tensor b: Target population bias.
+        :param float wmin: Minimum allowed value on the connection weights.
+        :param float wmax: Maximum allowed value on the connection weights.
+        :param float norm: Total weight per target neuron normalization constant.
+        """
+
+        super().__init__(source, target, nu, reduction, weight_decay, **kwargs)
+
+        kernel_size = _pair(kernel_size)
+        stride = _pair(stride)
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.n_filters = n_filters
+
+        self.in_channels, input_height, input_width = (
+            source.shape[0],
+            source.shape[1],
+            source.shape[2],
+        )
+
+        height = int((
+            input_height - self.kernel_size[0]
+        ) / self.stride[0]) + 1
+        width = int((
+            input_width - self.kernel_size[1]
+        ) / self.stride[1]) + 1
+
+
+        self.conv_size = (height, width)
+        self.conv_prod = int(np.prod(self.conv_size))
+        self.kernel_prod = int(np.prod(kernel_size))
+
+        w = kwargs.get("w", None)
+
+        error =  (
+            "Target dimensionality must be (in_channels,"
+            "n_filters*conv_prod,"
+            "kernel_prod)"
+        )
+
+        if w is None:
+            w = torch.rand(
+                self.in_channels, 
+                self.n_filters * self.conv_prod,
+                self.kernel_prod
+            )
+        else:
+            assert w.shape == (
+                self.in_channels, 
+                self.out_channels * self.conv_prod,
+                self.kernel_prod
+                ), error
+
+        if self.wmin != -np.inf or self.wmax != np.inf:
+            w = torch.clamp(w, self.wmin, self.wmax)
+
+        self.w = Parameter(w, requires_grad=False)
+        self.b = Parameter(kwargs.get("b", None), requires_grad=False)
+
+
+    def compute(self, s: torch.Tensor) -> torch.Tensor:
+        """
+        Compute pre-activations given spikes using layer weights.
+        :param s: Incoming spikes.
+        :return: Incoming spikes multiplied by synaptic weights (with or without
+            decaying spike activation).
+        """
+        # Compute multiplication of pre-activations by connection weights
+        # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k1*k2
+        # w: ch_in, ch_out * w_out * h_out, k1*k2
+        # a_post: batch, ch_in, ch_out * w_out * h_out, k1*k2 => batch, ch_out * w_out * h_out (= target.n)
+
+        batch_size = s.shape[0]
+
+        self.s_unfold = s.unfold(
+            -2,self.kernel_size[0],self.stride[0]
+        ).unfold(
+            -2,self.kernel_size[1],self.stride[1]
+        ).reshape(
+            s.shape[0], 
+            self.in_channels,
+            self.conv_prod,
+            self.kernel_prod,
+        ).repeat(
+            1,
+            1,
+            self.n_filters,
+            1,
+        )
+        
+        a_post = self.s_unfold.to(self.w.device) * self.w
+
+        return a_post.sum(-1).sum(1).view(batch_size, *self.target.shape)
+
+    def update(self, **kwargs) -> None:
+        """
+        Compute connection's update rule.
+        """
+        super().update(**kwargs)
+
+    def normalize(self) -> None:
+        """
+        Normalize weights so each target neuron has sum of connection weights equal to
+        ``self.norm``.
+        """
+        if self.norm is not None:
+            # get a view and modify in-place
+            # w: ch_in, ch_out * w_out * h_out, k ** 2
+            w = self.w.view(
+                self.w.shape[0]*self.w.shape[1], self.w.shape[2]
+            )
+
+            for fltr in range(w.shape[0]):
+                w[fltr,:] *= self.norm / w[fltr,:].sum(0)
+
+
+    def reset_state_variables(self) -> None:
+        """
+        Contains resetting logic for the connection.
+        """
+        super().reset_state_variables()
+
+        self.target.reset_state_variables()
 
 class LocalConnection2D(AbstractConnection):
+    """
+    Specifies a two-dimensional local connection between one or two population of neurons supporting multi-channel 3D inputs; 
+    The logic is different from the original LocalConnection implementation
+    """
+
+    def __init__(
+        self,
+        source: Nodes,
+        target: Nodes,
+        kernel_size: Union[int, Tuple[int, int]],
+        stride: Union[int, Tuple[int, int]],
+        n_filters: int,
+        nu: Optional[Union[float, Sequence[float]]] = None,
+        reduction: Optional[callable] = None,
+        weight_decay: float = 0.0,
+        **kwargs
+    ) -> None:
+        """
+        Instantiates a 'LocalConnection` object. Source population can be multi-channel.
+        Neurons in the post-synaptic population are ordered by receptive field, i.e.,
+        if there are `n_conv` neurons in each post-synaptic patch, then the first
+        `n_conv` neurons in the post-synaptic population correspond to the first
+        receptive field, the second ``n_conv`` to the second receptive field, and so on.
+        :param source: A layer of nodes from which the connection originates.
+        :param target: A layer of nodes to which the connection connects.
+        :param kernel_size: Horizontal and vertical size of convolutional kernels.
+        :param stride: Horizontal and vertical stride for convolution.
+        :param n_filters: Number of locally connected filters per pre-synaptic region.
+        :param input_shape: The 2D shape of each input channel
+        :param nu: Learning rate for both pre- and post-synaptic events.
+        :param reduction: Method for reducing parameter updates along the minibatchdimension.
+        :param weight_decay: Constant multiple to decay weights by on each iteration.
+        Keyword arguments:
+        :param LearningRule update_rule: Modifies connection parameters according to
+            some rule. For now, only PostPre has been implemented for the multi-channel-input implementation
+        :param torch.Tensor w: Strengths of synapses.
+        :param torch.Tensor b: Target population bias.
+        :param float wmin: Minimum allowed value on the connection weights.
+        :param float wmax: Maximum allowed value on the connection weights.
+        :param float norm: Total weight per target neuron normalization constant.
+        """
+
+        super().__init__(source, target, nu, reduction, weight_decay, **kwargs)
+
+        kernel_size = _pair(kernel_size)
+        stride = _pair(stride)
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.n_filters = n_filters
+
+        self.in_channels, input_height, input_width = (
+            source.shape[0],
+            source.shape[1],
+            source.shape[2],
+        )
+
+        height = int((
+            input_height - self.kernel_size[0]
+        ) / self.stride[0]) + 1
+        width = int((
+            input_width - self.kernel_size[1]
+        ) / self.stride[1]) + 1
+
+
+        self.conv_size = (height, width)
+        self.conv_prod = int(np.prod(self.conv_size))
+        self.kernel_prod = int(np.prod(kernel_size))
+
+        w = kwargs.get("w", None)
+
+        error =  (
+            "Target dimensionality must be (in_channels,"
+            "n_filters*conv_prod,"
+            "kernel_prod)"
+        )
+
+        if w is None:
+            w = torch.rand(
+                self.in_channels, 
+                self.n_filters * self.conv_prod,
+                self.kernel_prod
+            )
+        else:
+            assert w.shape == (
+                self.in_channels, 
+                self.out_channels * self.conv_prod,
+                self.kernel_prod
+                ), error
+
+        if self.wmin != -np.inf or self.wmax != np.inf:
+            w = torch.clamp(w, self.wmin, self.wmax)
+
+        self.w = Parameter(w, requires_grad=False)
+        self.b = Parameter(kwargs.get("b", None), requires_grad=False)
+
+
+    def compute(self, s: torch.Tensor) -> torch.Tensor:
+        """
+        Compute pre-activations given spikes using layer weights.
+        :param s: Incoming spikes.
+        :return: Incoming spikes multiplied by synaptic weights (with or without
+            decaying spike activation).
+        """
+        # Compute multiplication of pre-activations by connection weights
+        # s: batch, ch_in, w_in, h_in => s_unfold: batch, ch_in, ch_out * w_out * h_out, k1*k2
+        # w: ch_in, ch_out * w_out * h_out, k1*k2
+        # a_post: batch, ch_in, ch_out * w_out * h_out, k1*k2 => batch, ch_out * w_out * h_out (= target.n)
+
+        batch_size = s.shape[0]
+
+        self.s_unfold = s.unfold(
+            -2,self.kernel_size[0],self.stride[0]
+        ).unfold(
+            -2,self.kernel_size[1],self.stride[1]
+        ).reshape(
+            s.shape[0], 
+            self.in_channels,
+            self.conv_prod,
+            self.kernel_prod,
+        ).repeat(
+            1,
+            1,
+            self.n_filters,
+            1,
+        )
+        
+        a_post = self.s_unfold.to(self.w.device) * self.w
+
+        return a_post.sum(-1).sum(1).view(batch_size, *self.target.shape)
+
+    def update(self, **kwargs) -> None:
+        """
+        Compute connection's update rule.
+        """
+        super().update(**kwargs)
+
+    def normalize(self) -> None:
+        """
+        Normalize weights so each target neuron has sum of connection weights equal to
+        ``self.norm``.
+        """
+        if self.norm is not None:
+            # get a view and modify in-place
+            # w: ch_in, ch_out * w_out * h_out, k ** 2
+            w = self.w.view(
+                self.w.shape[0]*self.w.shape[1], self.w.shape[2]
+            )
+
+            for fltr in range(w.shape[0]):
+                w[fltr,:] *= self.norm / w[fltr,:].sum(0)
+
+
+    def reset_state_variables(self) -> None:
+        """
+        Contains resetting logic for the connection.
+        """
+        super().reset_state_variables()
+
+        self.target.reset_state_variables()
+
+
+class LocalConnection3D(AbstractConnection):
     """
     Specifies a two-dimensional local connection between one or two population of neurons supporting multi-channel 3D inputs; 
     The logic is different from the original LocalConnection implementation

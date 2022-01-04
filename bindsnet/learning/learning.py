@@ -16,7 +16,9 @@ from ..network.topology import (
     Conv2dConnection,
     Conv3dConnection,
     LocalConnection,
-    LocalConnection2D
+    LocalConnection1D,
+    LocalConnection2D,
+    LocalConnection3D,
 )
 
 
@@ -178,7 +180,11 @@ class PostPre(LearningRule):
         if isinstance(connection, (Connection, LocalConnection)):
             self.update = self._connection_update
         elif isinstance(connection, LocalConnection2D):
-            self.update = self._local_connection_update
+            self.update = self._local_connection2d_update
+        elif isinstance(connection, LocalConnection3D):
+            self.update = self._local_connection3d_update
+        elif isinstance(connection, LocalConnection1D):
+            self.update = self._local_connection1d_update
         elif isinstance(connection, Conv1dConnection):
             self.update = self._conv1d_connection_update
         elif isinstance(connection, Conv2dConnection):
@@ -189,8 +195,114 @@ class PostPre(LearningRule):
             raise NotImplementedError(
                 "This learning rule is not supported for this Connection type."
             )
+    
+    def _local_connection1d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
 
-    def _local_connection_update(self, **kwargs) -> None:
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection2d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection3d_update(self, **kwargs) -> None:
         # language=rst
         """
         Post-pre learning rule for ``LocalConnection`` subclass of
@@ -468,6 +580,165 @@ class WeightDependentPostPre(LearningRule):
 
         super().update()
 
+    def _local_connection1d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection2d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection3d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
     def _conv1d_connection_update(self, **kwargs) -> None:
         # language=rst
         """
@@ -518,6 +789,8 @@ class WeightDependentPostPre(LearningRule):
         self.connection.w += update
 
         super().update()
+
+
 
     def _conv2d_connection_update(self, **kwargs) -> None:
         # language=rst
@@ -702,6 +975,165 @@ class Hebbian(LearningRule):
         # Post-synaptic update.
         update = self.reduction(torch.bmm(source_x, target_s), dim=0)
         self.connection.w += self.nu[1] * update
+
+        super().update()
+
+    def _local_connection1d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection2d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection3d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
 
         super().update()
 
@@ -917,6 +1349,165 @@ class MSTDP(LearningRule):
         self.eligibility = torch.bmm(
             self.p_plus.unsqueeze(2), target_s.unsqueeze(1)
         ) + torch.bmm(source_s.unsqueeze(2), self.p_minus.unsqueeze(1))
+
+        super().update()
+
+    def _local_connection1d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection2d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection3d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
 
         super().update()
 
@@ -1346,6 +1937,165 @@ class MSTDPET(LearningRule):
         self.eligibility = torch.outer(self.p_plus, target_s) + torch.outer(
             source_s, self.p_minus
         )
+
+        super().update()
+
+    def _local_connection1d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection2d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
+
+        super().update()
+
+    def _local_connection3d_update(self, **kwargs) -> None:
+        # language=rst
+        """
+        Post-pre learning rule for ``LocalConnection`` subclass of
+        ``AbstractConnection`` class.
+        """
+        # Get LC layer parameters.
+        stride = self.connection.stride
+        batch_size = self.source.batch_size
+        kernel_width = self.connection.kernel_size[0]
+        kernel_height = self.connection.kernel_size[1]
+        in_channels = self.connection.source.shape[0]
+        out_channels = self.connection.n_filters
+        width_out = self.connection.conv_size[0]
+        height_out = self.connection.conv_size[1]
+
+
+        target_x = self.target.x.reshape(batch_size, out_channels * width_out * height_out, 1) 
+        target_x = target_x * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_s = self.source.s.type(torch.float).unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+        
+
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels * width_out*height_out,1)
+        target_s = target_s * torch.eye(out_channels * width_out * height_out).to(self.connection.w.device)
+        source_x = self.source.x.unfold(-2, kernel_width,stride[0]).unfold(-2, kernel_height, stride[1]).reshape(
+            batch_size, 
+            width_out * height_out,
+            in_channels *  kernel_width *  kernel_height,
+        ).repeat(
+            1,
+            out_channels,
+            1,
+        ).to(self.connection.w.device)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            pre = self.reduction(torch.bmm(target_x,source_s), dim=0)
+            self.connection.w -= self.nu[0] * pre.view(self.connection.w.size())
+        # Post-synaptic update.
+        if self.nu[1]:
+            post = self.reduction(torch.bmm(target_s, source_x),dim=0)
+            self.connection.w += self.nu[1] * post.view(self.connection.w.size())
 
         super().update()
 
