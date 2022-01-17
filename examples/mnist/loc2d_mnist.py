@@ -11,13 +11,8 @@ import torch
 from torchvision import transforms
 from tqdm import tqdm
 
-# from bindsnet.analysis.plotting import (
-#     plot_input,
-#     plot_spikes,
-#     plot_voltages,
-# )
 
-from temp import plot_locally_connected_feature_maps
+from bindsnet.analysis.plotting import plot_local_connection_2d_weights
 
 from time import time as t
 from torchvision import transforms
@@ -86,9 +81,7 @@ input_output_conn = LocalConnection2D(
     output_layer,
     kernel_size=kernel_size,
     stride=stride,
-    in_channels=in_channels,
-    out_channels=n_filters,
-    input_shape=[20,20],
+    n_filters = 50,
     nu=nu,
     update_rule=PostPre,
     wmin=wmin,
@@ -187,26 +180,7 @@ for epoch in range(n_epochs):
 
         # Optionally plot various simulation information.
         if plot:
-            # image = batch["image"].view(input_shape[0], input_shape[1])
-
-            # inpt = inputs["X"].view(time, input_shape[0]*input_shape[1]).sum(0).view(input_shape[0], input_shape[1])
-            weights1 = input_output_conn.w
-            #print(weights1.shape)
-            # _spikes = {
-            #     "X": spikes["X"].get("s").view(time, -1),
-            #     "Y": spikes["Y"].get("s").view(time, -1),
-            # }
-            # _voltages = {"Y": voltages["Y"].get("v").view(time, -1)}
-
-            # inpt_axes, inpt_ims = plot_input(
-            #     image, inpt, label=label, axes=inpt_axes, ims=inpt_ims
-            # )
-            # spike_ims, spike_axes = plot_spikes(_spikes, ims=spike_ims, axes=spike_axes)
-            weights1_im = plot_locally_connected_feature_maps(weights1, n_filters, in_channels, slice_to_plot, input_shape[0], kernel_size[0], conv_size[0], im=weights1_im)
-            # voltage_ims, voltage_axes = plot_voltages(
-            #     _voltages, ims=voltage_ims, axes=voltage_axes
-            # )
-
+            weights1_im = plot_local_connection_2d_weights(network.connections[("X", "Y")])
             plt.pause(1)
 
         network.reset_state_variables()  # Reset state variables.
@@ -214,7 +188,6 @@ for epoch in range(n_epochs):
 print("Progress: %d / %d (%.4f seconds)\n" % (n_epochs, n_epochs, t() - start))
 print("Training complete.\n")
 
-weights1 = input_output_conn.w
-weights1_im = plot_locally_connected_feature_maps(weights1, n_filters, in_channels, slice_to_plot, input_shape[0], kernel_size[0], conv_size[0])
+weights1_im = plot_local_connection_2d_weights(network.connections[("X", "Y")])
 plt.savefig('test.png')
 plt.pause(100)

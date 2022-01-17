@@ -782,13 +782,13 @@ def plot_local_connection_2d_weights(lc : object,
     :return: ``ims, axes``: Used for re-drawing the plots.
     """
 
-    n_sqrt = int(np.ceil(np.sqrt(lc.out_channels)))
-    sel_slice = lc.w.view(lc.in_channels, lc.out_channels, lc.conv_size[0], lc.conv_size[1], lc.kernel_size[0], lc.kernel_size[1]).cpu()
+    n_sqrt = int(np.ceil(np.sqrt(lc.n_filters)))
+    sel_slice = lc.w.view(lc.in_channels, lc.n_filters, lc.conv_size[0], lc.conv_size[1], lc.kernel_size[0], lc.kernel_size[1]).cpu()
     input_size = _pair(int(np.sqrt(lc.source.n)))
 
     if output_channel is None:
         sel_slice = sel_slice[input_channel, ...]
-        reshaped = reshape_local_connection_2d_weights(sel_slice, lc.out_channels, lc.kernel_size, lc.conv_size, input_size)
+        reshaped = reshape_local_connection_2d_weights(sel_slice, lc.n_filters, lc.kernel_size, lc.conv_size, input_size)
     else:
         sel_slice = sel_slice[input_channel, output_channel, ...]
         sel_slice = sel_slice.unsqueeze(0)
