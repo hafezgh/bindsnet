@@ -1403,7 +1403,6 @@ class MSTDP(LearningRule):
 
         # Compute weight update based on the eligibility value of the past timestep.
         update = reward * self.eligibility
-        print(update.shape, self.connection.w.shape)
         self.connection.w += self.nu[0] * self.reduction(update, dim=0)
 
         # Initialize P^+ and P^-.
@@ -1492,6 +1491,7 @@ class MSTDP(LearningRule):
 
         # Compute weight update based on the eligibility value of the past timestep.
         update = reward * self.eligibility
+        print(update.shape, self.connection.w.shape)
         self.connection.w += self.nu[0] * self.reduction(update, dim=0)
 
         # Initialize P^+ and P^-.
@@ -1502,7 +1502,7 @@ class MSTDP(LearningRule):
             self.p_plus = self.p_plus.unfold(-2, kernel_height,stride[0]).unfold(-2, kernel_width, stride[1]).reshape(
                 batch_size, 
                 height_out * width_out,
-                in_channels *  kernel_height * kernel_width,
+                in_channels * kernel_height * kernel_width,
             ).repeat(
                 1,
                 out_channels,
@@ -1514,7 +1514,7 @@ class MSTDP(LearningRule):
                 batch_size, *self.target.shape, device=self.connection.w.device
             )
             self.p_minus = self.p_minus.reshape(batch_size,\
-                 out_channels * height_out * width_out, 1)
+                 out_channels * height_out * width_out, -1)
             self.p_minus = self.p_minus *\
                  torch.eye(out_channels * height_out * width_out).to(self.connection.w.device)
 
