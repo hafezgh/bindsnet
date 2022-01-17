@@ -1403,6 +1403,7 @@ class MSTDP(LearningRule):
 
         # Compute weight update based on the eligibility value of the past timestep.
         update = reward * self.eligibility
+        print(update.shape, self.connection.w.shape)
         self.connection.w += self.nu[0] * self.reduction(update, dim=0)
 
         # Initialize P^+ and P^-.
