@@ -1454,6 +1454,8 @@ class MSTDP(LearningRule):
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
 
+        self.eligibility = self.eligibility.view(self.connection.w.size())
+
         super().update()
 
 
@@ -1492,8 +1494,6 @@ class MSTDP(LearningRule):
         # Compute weight update based on the eligibility value of the past timestep.
         update = reward * self.eligibility
 
-        print(update.shape, self.connection.w.shape)
-
         self.connection.w += self.nu[0] * self.reduction(update, dim=0)
 
         # Initialize P^+ and P^-.
@@ -1516,7 +1516,7 @@ class MSTDP(LearningRule):
                 batch_size, *self.target.shape, device=self.connection.w.device
             )
             self.p_minus = self.p_minus.reshape(batch_size,\
-                 out_channels * height_out * width_out, -1)
+                 out_channels * height_out * width_out, 1)
             self.p_minus = self.p_minus *\
                  torch.eye(out_channels * height_out * width_out).to(self.connection.w.device)
 
@@ -1531,7 +1531,7 @@ class MSTDP(LearningRule):
             1,
         ).to(self.connection.w.device)
 
-        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels*height_out*width_out,-1)
+        target_s = self.target.s.type(torch.float).reshape(batch_size, out_channels*height_out*width_out, 1)
         target_s = target_s * torch.eye(out_channels*height_out*width_out).to(self.connection.w.device)
         
         # Update P^+ and P^- values.
@@ -1544,6 +1544,8 @@ class MSTDP(LearningRule):
         self.eligibility = torch.bmm(
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
+
+        self.eligibility = self.eligibility.view(self.connection.w.size())
 
         super().update()
 
@@ -1637,6 +1639,8 @@ class MSTDP(LearningRule):
         self.eligibility = torch.bmm(
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
+
+        self.eligibility = self.eligibility.view(self.connection.w.size())
 
         super().update()
 
