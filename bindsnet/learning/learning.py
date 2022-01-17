@@ -1383,7 +1383,7 @@ class MSTDP(LearningRule):
         batch_size = self.source.batch_size
         kernel_height = self.connection.kernel_size
         in_channels = self.connection.in_channels
-        out_channels = self.connection.out_channels
+        out_channels = self.connection.n_filters
         height_out = self.connection.conv_size
 
         # Initialize eligibility.
@@ -1469,7 +1469,7 @@ class MSTDP(LearningRule):
         kernel_height = self.connection.kernel_size[0]
         kernel_width = self.connection.kernel_size[1]
         in_channels = self.connection.in_channels
-        out_channels = self.connection.out_channels
+        out_channels = self.connection.n_filters
         height_out = self.connection.conv_size[0]
         width_out = self.connection.conv_size[1]
 
@@ -1559,7 +1559,7 @@ class MSTDP(LearningRule):
         kernel_width = self.connection.kernel_size[1]
         kernel_depth = self.connection.kernel_size[2]
         in_channels = self.connection.in_channels
-        out_channels = self.connection.out_channels
+        out_channels = self.connection.n_filters
         height_out = self.connection.conv_size[0]
         width_out = self.connection.conv_size[1]
         depth_out = self.connection.conv_size[2]
@@ -1995,7 +1995,7 @@ class MSTDPET(LearningRule):
         batch_size = self.source.batch_size
         kernel_height = self.connection.kernel_size
         in_channels = self.connection.in_channels
-        out_channels = self.connection.out_channels
+        out_channels = self.connection.n_filters
         height_out = self.connection.conv_size
 
         # Initialize eligibility.
@@ -2092,7 +2092,7 @@ class MSTDPET(LearningRule):
         kernel_width = self.connection.kernel_size[0]
         kernel_height = self.connection.kernel_size[1]
         in_channels = self.connection.in_channels
-        out_channels = self.connection.out_channels
+        out_channels = self.connection.n_filters
         height_out = self.connection.conv_size[0]
         width_out = self.connection.conv_size[1]
 
@@ -2193,7 +2193,7 @@ class MSTDPET(LearningRule):
         kernel_height = self.connection.kernel_size[1]
         kernel_depth = self.connection.kernel_size[2]
         in_channels = self.connection.in_channels
-        out_channels = self.connection.out_channels
+        out_channels = self.connection.n_filters
         height_out = self.connection.conv_size[0]
         width_out = self.connection.conv_size[1]
         depth_out = self.connection.conv_size[2]

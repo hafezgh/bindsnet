@@ -16,7 +16,7 @@ from bindsnet.analysis.plotting import plot_local_connection_2d_weights
 
 from time import time as t
 from torchvision import transforms
-from bindsnet.learning import PostPre
+from bindsnet.learning import PostPre, WeightDependentPostPre, Hebbian, MSTDP, MSTDPET
 
 from bindsnet.network.nodes import AdaptiveLIFNodes
 from bindsnet.network.nodes import Input
@@ -28,7 +28,7 @@ from bindsnet.datasets import MNIST
 
 # Hyperparameters
 in_channels = 2
-n_filters = 50
+n_filters = 10
 input_shape = [20, 20]
 kernel_size = _pair(12)
 stride = _pair(4)
@@ -45,7 +45,7 @@ intensity = 128
 n_epochs = 1
 n_train = 1000
 progress_interval = 10
-batch_size = 1
+batch_size = 5
 
 plot = True
 slice_to_plot = 0
@@ -81,9 +81,9 @@ input_output_conn = LocalConnection2D(
     output_layer,
     kernel_size=kernel_size,
     stride=stride,
-    n_filters = 50,
+    n_filters = n_filters,
     nu=nu,
-    update_rule=PostPre,
+    update_rule=MSTDP,
     wmin=wmin,
     wmax=wmax,
     norm=norm,
@@ -176,7 +176,7 @@ for epoch in range(n_epochs):
         label = batch["label"]
 
         # Run the network on the input.
-        network.run(inputs=inputs, time=time, input_time_dim=1)
+        network.run(inputs=inputs, time=time, input_time_dim=1, reward=1)
         weights1_im = None
         # Optionally plot various simulation information.
         if plot:
