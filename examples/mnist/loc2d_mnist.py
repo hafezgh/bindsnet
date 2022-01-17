@@ -43,9 +43,9 @@ dt = 1.0
 time = 250
 intensity = 128
 n_epochs = 1
-n_train = 500
+n_train = 1000
 progress_interval = 10
-batch_size = 5
+batch_size = 1
 
 plot = True
 slice_to_plot = 0
@@ -177,10 +177,10 @@ for epoch in range(n_epochs):
 
         # Run the network on the input.
         network.run(inputs=inputs, time=time, input_time_dim=1)
-
+        weights1_im = None
         # Optionally plot various simulation information.
         if plot:
-            weights1_im = plot_local_connection_2d_weights(network.connections[("X", "Y")])
+            weights1_im = plot_local_connection_2d_weights(network.connections[("X", "Y")], im=weights1_im)
             plt.pause(1)
 
         network.reset_state_variables()  # Reset state variables.
