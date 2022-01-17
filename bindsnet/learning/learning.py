@@ -1454,7 +1454,7 @@ class MSTDP(LearningRule):
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
 
-        self.eligibility = self.eligibility.view(self.connection.w.size())
+        self.eligibility = self.eligibility.view(*self.connection.w.shape)
 
         super().update()
 
@@ -1545,7 +1545,7 @@ class MSTDP(LearningRule):
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
 
-        self.eligibility = self.eligibility.view(self.connection.w.size())
+        self.eligibility = self.eligibility.view(*self.connection.w.shape)
 
         super().update()
 
@@ -1640,7 +1640,7 @@ class MSTDP(LearningRule):
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
 
-        self.eligibility = self.eligibility.view(self.connection.w.size())
+        self.eligibility = self.eligibility.view(*self.connection.w.shape)
 
         super().update()
 
@@ -2082,7 +2082,7 @@ class MSTDPET(LearningRule):
         self.eligibility = torch.bmm(
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
-        self.eligibility = self.eligibility.view(self.connection.w.size())
+        self.eligibility = self.eligibility.view(*self.connection.w.shape)
 
         super().update()
 
@@ -2182,7 +2182,7 @@ class MSTDPET(LearningRule):
         self.eligibility = torch.bmm(
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
-        self.eligibility = self.eligibility.view(self.connection.w.size())
+        self.eligibility = self.eligibility.view(*self.connection.w.shape)
 
         super().update()
 
@@ -2284,7 +2284,7 @@ class MSTDPET(LearningRule):
         self.eligibility = torch.bmm(
             target_s, self.p_plus
         ) + torch.bmm(self.p_minus, source_s)
-        self.eligibility = self.eligibility.view(self.connection.w.size())
+        self.eligibility = self.eligibility.view(*self.connection.w.shape)
 
         super().update()
 
