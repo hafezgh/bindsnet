@@ -16,7 +16,7 @@ from bindsnet.analysis.plotting import plot_local_connection_2d_weights
 
 from time import time as t
 from torchvision import transforms
-from bindsnet.learning import PostPre, WeightDependentPostPre, Hebbian, MSTDP, MSTDPET
+from bindsnet.learning import PostPre
 
 from bindsnet.network.nodes import AdaptiveLIFNodes
 from bindsnet.network.nodes import Input
@@ -47,9 +47,7 @@ n_train = 2500
 progress_interval = 10
 batch_size = 1
 
-plot = False
-slice_to_plot = 0
-
+plot = True
 
 # Build network
 network = Network()
@@ -88,7 +86,7 @@ input_output_conn = LocalConnection2D(
     norm=norm,
 )
 
-w_inh_LC = torch.zeros(n_filters, conv_size[0], conv_size[0], n_filters, conv_size[0], conv_size[0])
+w_inh_LC = torch.zeros(n_filters, conv_size[0], conv_size[1], n_filters, conv_size[0], conv_size[1])
 for c in range(n_filters):
     for w1 in range(conv_size[0]):
         for w2 in range(conv_size[0]):
@@ -148,9 +146,6 @@ start = t()
 
 weights1_im = None
 
-
-
-
 for epoch in range(n_epochs):
     if epoch % progress_interval == 0:
         print("Progress: %d / %d (%.4f seconds)" % (epoch, n_epochs, t() - start))
@@ -171,6 +166,7 @@ for epoch in range(n_epochs):
 
         # Run the network on the input.
         network.run(inputs=inputs, time=time, input_time_dim=1)
+
         # Optionally plot various simulation information.
         if plot:
             weights1_im = plot_local_connection_2d_weights(network.connections[("X", "Y")], im=weights1_im)

@@ -402,7 +402,6 @@ def plot_local_connection_2d_weights(lc : object,
     n_sqrt = int(np.ceil(np.sqrt(lc.n_filters)))
     sel_slice = lc.w.view(lc.in_channels, lc.n_filters, lc.conv_size[0], lc.conv_size[1], lc.kernel_size[0], lc.kernel_size[1]).cpu()
     input_size = _pair(int(np.sqrt(lc.source.n)))
-    conv_size = lc.conv_size
     if output_channel is None:
         sel_slice = sel_slice[input_channel, ...]
         reshaped = reshape_local_connection_2d_weights(sel_slice, lc.n_filters, lc.kernel_size, lc.conv_size, input_size)
