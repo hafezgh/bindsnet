@@ -432,10 +432,6 @@ def plot_local_connection_2d_weights(lc : object,
             ):
                 ax.axvline(i - 0.5, color=color, linestyle="--")
             
-            for n1 in range(n_sqrt):
-                for n2 in range(n_sqrt):
-                    ax.axhline((n1 + 1) * conv_size[0], color="g", linestyle="-")
-                    ax.axvline((n2 + 1) * conv_size[1], color="g", linestyle="--")
         ax.set_xticks(())
         ax.set_yticks(())
         ax.set_aspect("auto")
