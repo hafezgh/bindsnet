@@ -27,8 +27,8 @@ from bindsnet.datasets import MNIST
 
 
 # Hyperparameters
-in_channels = 2
-n_filters = 10
+in_channels = 1
+n_filters = 100
 input_shape = [20, 20]
 kernel_size = _pair(12)
 stride = _pair(4)
@@ -45,7 +45,7 @@ intensity = 128
 n_epochs = 1
 n_train = 1000
 progress_interval = 10
-batch_size = 5
+batch_size = 1
 
 plot = True
 slice_to_plot = 0
@@ -70,7 +70,6 @@ output_layer = AdaptiveLIFNodes(
     reset=-60.0,
     thresh=-52.0,
     refrac=5,
-    tc_decay=100.0,
     tc_trace=20.0,
     theta_plus=theta_plus,
     tc_theta_decay=tc_theta_decay,
@@ -83,7 +82,7 @@ input_output_conn = LocalConnection2D(
     stride=stride,
     n_filters = n_filters,
     nu=nu,
-    update_rule=MSTDP,
+    update_rule=PostPre,
     wmin=wmin,
     wmax=wmax,
     norm=norm,
@@ -147,13 +146,8 @@ for layer in set(network.layers) - {"X"}:
 print("Begin training.\n")
 start = t()
 
-inpt_axes = None
-inpt_ims = None
-spike_ims = None
-spike_axes = None
 weights1_im = None
-voltage_ims = None
-voltage_axes = None
+
 
 
 
@@ -170,14 +164,13 @@ for epoch in range(n_epochs):
         # Get next input sample.
         if step > n_train:
             break
-        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, input_shape[0], input_shape[1]).repeat(1,1,2,1,1)}
+        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, input_shape[0], input_shape[1])}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
         label = batch["label"]
 
         # Run the network on the input.
-        network.run(inputs=inputs, time=time, input_time_dim=1, reward=1)
-        weights1_im = None
+        network.run(inputs=inputs, time=time, input_time_dim=1)
         # Optionally plot various simulation information.
         if plot:
             weights1_im = plot_local_connection_2d_weights(network.connections[("X", "Y")], im=weights1_im)
