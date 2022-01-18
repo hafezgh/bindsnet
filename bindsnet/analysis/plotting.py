@@ -402,7 +402,7 @@ def plot_local_connection_2d_weights(lc : object,
     n_sqrt = int(np.ceil(np.sqrt(lc.n_filters)))
     sel_slice = lc.w.view(lc.in_channels, lc.n_filters, lc.conv_size[0], lc.conv_size[1], lc.kernel_size[0], lc.kernel_size[1]).cpu()
     input_size = _pair(int(np.sqrt(lc.source.n)))
-
+    conv_size = lc.conv_size
     if output_channel is None:
         sel_slice = sel_slice[input_channel, ...]
         reshaped = reshape_local_connection_2d_weights(sel_slice, lc.n_filters, lc.kernel_size, lc.conv_size, input_size)
@@ -410,36 +410,43 @@ def plot_local_connection_2d_weights(lc : object,
         sel_slice = sel_slice[input_channel, output_channel, ...]
         sel_slice = sel_slice.unsqueeze(0)
         reshaped = reshape_local_connection_2d_weights(sel_slice, 1, lc.kernel_size, lc.conv_size, input_size)
+    if im == None:
+        fig, ax = plt.subplots(figsize=figsize)
 
-    fig, ax = plt.subplots(figsize=figsize)
+        im = ax.imshow(reshaped.cpu(), cmap=cmap, vmin=lc.wmin, vmax=lc.wmax)
+        div = make_axes_locatable(ax)
+        cax = div.append_axes("right", size="5%", pad=0.05)
 
-    im = ax.imshow(reshaped.cpu(), cmap=cmap, vmin=lc.wmin, vmax=lc.wmax)
-    div = make_axes_locatable(ax)
-    cax = div.append_axes("right", size="5%", pad=0.05)
+        if lines and  output_channel is None:
+            for i in range(
+                n_sqrt * lc.kernel_size[0],
+                n_sqrt * lc.conv_size[0] * lc.kernel_size[0],
+                n_sqrt * lc.kernel_size[0],
+            ):
+                ax.axhline(i - 0.5, color=color, linestyle="--")
 
-    if lines and  output_channel is None:
-        for i in range(
-            n_sqrt * lc.kernel_size[0],
-            n_sqrt * lc.conv_size[0] * lc.kernel_size[0],
-            n_sqrt * lc.kernel_size[0],
-        ):
-            ax.axhline(i - 0.5, color=color, linestyle="--")
+            for i in range(
+                n_sqrt * lc.kernel_size[1],
+                n_sqrt * lc.conv_size[1] * lc.kernel_size[1],
+                n_sqrt * lc.kernel_size[1],
+            ):
+                ax.axvline(i - 0.5, color=color, linestyle="--")
+            
+            for n1 in range(n_sqrt):
+                for n2 in range(n_sqrt):
+                    ax.axhline((n1 + 1) * conv_size[0], color="g", linestyle="-")
+                    ax.axvline((n2 + 1) * conv_size[1], color="g", linestyle="--")
+        ax.set_xticks(())
+        ax.set_yticks(())
+        ax.set_aspect("auto")
 
-        for i in range(
-            n_sqrt * lc.kernel_size[1],
-            n_sqrt * lc.conv_size[1] * lc.kernel_size[1],
-            n_sqrt * lc.kernel_size[1],
-        ):
-            ax.axvline(i - 0.5, color=color, linestyle="--")
+        plt.colorbar(im, cax=cax)
+        fig.tight_layout()
 
-    ax.set_xticks(())
-    ax.set_yticks(())
-    ax.set_aspect("auto")
-
-    plt.colorbar(im, cax=cax)
-    fig.tight_layout()
-
+    else:
+        im.set_data(reshaped.cpu())
     return im
+    
 
 def plot_assignments(
     assignments: torch.Tensor,
