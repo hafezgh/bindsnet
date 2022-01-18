@@ -1,4 +1,5 @@
-### Toy example to test Conv1dConnection (the dataset used is MNIST but each image is raveled (each sample has shape (784,)).
+### Toy example to test Conv3dConnection (the dataset used is MNIST but with a dimension replicated 
+### for each image (each sample has size (28, 28, 28))
 
 import argparse
 import os
@@ -14,7 +15,7 @@ from bindsnet.learning import PostPre
 from bindsnet.network import Network
 from bindsnet.network.monitors import Monitor
 from bindsnet.network.nodes import DiehlAndCookNodes, Input
-from bindsnet.network.topology import Connection, Conv1dConnection
+from bindsnet.network.topology import Connection, Conv3dConnection
 
 print()
 
@@ -24,8 +25,8 @@ parser.add_argument("--n_epochs", type=int, default=1)
 parser.add_argument("--n_test", type=int, default=10000)
 parser.add_argument("--n_train", type=int, default=60000)
 parser.add_argument("--batch_size", type=int, default=1)
-parser.add_argument("--kernel_size", type=int, default=28 * 2)
-parser.add_argument("--stride", type=int, default=28)
+parser.add_argument("--kernel_size", type=int, default=16)
+parser.add_argument("--stride", type=int, default=4)
 parser.add_argument("--n_filters", type=int, default=25)
 parser.add_argument("--padding", type=int, default=0)
 parser.add_argument("--time", type=int, default=50)
@@ -74,38 +75,40 @@ print("Running on Device = ", device)
 if not train:
     update_interval = n_test
 
-conv_size = int((28 * 28 - kernel_size + 2 * padding) / stride) + 1
+conv_size = int((28 - kernel_size + 2 * padding) / stride) + 1
 per_class = int((n_filters * conv_size) / 10)
 
 # Build network.
 network = Network()
-input_layer = Input(n=28 * 28, shape=(1, 28 * 28), traces=True)
+input_layer = Input(n=28*28*28, shape=(1, 28, 28, 28), traces=True)
 
 conv_layer = DiehlAndCookNodes(
-    n=n_filters * conv_size,
-    shape=(n_filters, conv_size),
+    n=n_filters * conv_size * conv_size * conv_size,
+    shape=(n_filters, conv_size, conv_size, conv_size),
     traces=True,
 )
 
-conv_conn = Conv1dConnection(
+conv_conn = Conv3dConnection(
     input_layer,
     conv_layer,
     kernel_size=kernel_size,
     stride=stride,
     update_rule=PostPre,
-    norm=0.4 * kernel_size,
+    norm=0.4 * kernel_size ** 3,
     nu=[1e-4, 1e-2],
     wmax=1.0,
 )
 
-w = torch.zeros(n_filters, conv_size, n_filters, conv_size)
+w = torch.zeros(n_filters, conv_size, conv_size, conv_size, n_filters, conv_size, conv_size, conv_size)
 for fltr1 in range(n_filters):
     for fltr2 in range(n_filters):
         if fltr1 != fltr2:
             for i in range(conv_size):
-                w[fltr1, i, fltr2, i] = -100.0
+                for j in range(conv_size):
+                    for k in range(conv_size):
+                        w[fltr1, i, j, k, fltr2, i, j, k] = -100.0
 
-w = w.view(n_filters * conv_size, n_filters * conv_size)
+w = w.view(n_filters * conv_size * conv_size * conv_size, n_filters * conv_size * conv_size * conv_size)
 recurrent_conn = Connection(conv_layer, conv_layer, w=w)
 
 network.add_layer(input_layer, name="X")
@@ -150,6 +153,7 @@ inpt_axes = None
 inpt_ims = None
 spike_ims = None
 spike_axes = None
+weights1_im = None
 voltage_ims = None
 voltage_axes = None
 
@@ -159,18 +163,14 @@ for epoch in range(n_epochs):
         start = t()
 
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=0,
-        pin_memory=gpu,
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=gpu
     )
 
     for step, batch in enumerate(tqdm(train_dataloader)):
-        # Get next input sample (raveled to have shape (time, batch_size, 1, 28*28))
+        # Get next input sample (expanded to have shape (time, batch_size, 1, 28, 28))
         if step > n_train:
             break
-        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, 28 * 28)}
+        inputs = {"X": batch["encoded_image"].view(time, batch_size, 1, 28, 28).unsqueeze(3).repeat(1,1,1,28,1,1).float()}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
         label = batch["label"]
