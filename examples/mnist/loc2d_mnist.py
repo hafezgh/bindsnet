@@ -28,7 +28,7 @@ from bindsnet.datasets import MNIST
 
 # Hyperparameters
 in_channels = 1
-n_filters = 25
+n_filters = 50
 input_shape = [20, 20]
 kernel_size = _pair(12)
 stride = _pair(4)
@@ -37,17 +37,17 @@ theta_plus = 0.05
 norm = 0.2*kernel_size[0]*kernel_size[1]
 wmin = 0.0
 wmax = 1.0
-nu = 0.1
+nu = (0.0001,0.01)
 inh = 25.0
 dt = 1.0
 time = 250
 intensity = 128
 n_epochs = 1
-n_train = 1000
+n_train = 2500
 progress_interval = 10
 batch_size = 1
 
-plot = True
+plot = False
 slice_to_plot = 0
 
 
